@@ -97,7 +97,72 @@ CA Deployment setup instruction steps.
 
     rename the file in _fabric-ca-client/org1-ca/rcaadmin/msp/keystore_ folder to _org1-key.pem_
 
+#############################################################################
+
+Registering and enrolling identities instruction steps.
+
+1. Start the fabric-ca-server-org1 as stated in step 11 above, then open a new terminal tab:
+
+   `cd Fabric-prod-network/fabric-ca-client`
+
+   `export FABRIC_CA_CLIENT_HOME=$PWD`
+
+2. To register an identity
+
+   `./fabric-ca-client register -d --id.name org1admin --id.secret org1adminpw -u https://kky-dell:7055 --mspdir ./org1-ca/rcaadmin/msp --id.type admin --tls.certfiles tls-root-cert/tls-ca-cert.pem --csr.hosts 'kky-dell,*localhost'`
+
+3. To enroll an identity
+
+   `./fabric-ca-client enroll -u https://org1admin:org1adminpw@kky-dell:7055 --mspdir ./org1.example.com/msp --tls.certfiles tls-root-cert/tls-ca-cert.pem --csr.hosts 'kky-dell,*localhost'`
+
+4. create config.yaml file inside _org1.example.com/msp_ folder with values of:
+
+   ```
+   NodeOUs:
+       Enable: true
+       ClientOUIdentifier:
+           Certificate: cacerts/kky-dell-7055.pem
+           OrganizationalUnitIdentifier: client
+       PeerOUIdentifier:
+           Certificate: cacerts/kky-dell-7055.pem
+           OrganizationalUnitIdentifier: peer
+       AdminOUIdentifier:
+           Certificate: cacerts/kky-dell-7055.pem
+           OrganizationalUnitIdentifier: admin
+       OrdererOUIdentifier:
+           Certificate: cacerts/kky-dell-7055.pem
+           OrganizationalUnitIdentifier: orderer
+   ```
+
+5. i)rename _org1.example.com/msp/signcerts/cert.pem_ to _org1-admin-cert.pem_
+
+   ii)rename file inside _org1.example.com/msp/keystore_ to _org1-admin-key.pem_
+
+6. Create a tlscacerts folder and copy the tls-root-cert into this folder.
+
+   `mkdir org1.example.com/msp/tlscacerts`
+
+   `cp tls-root-cert/tls-ca-cert.pem org1.example.com/msp/tlscacerts`
+
+7. Create orgMsp and localMsp folder.
+
+   `mkdir -p org1.example.com/orgMsp/msp org1.example.com/localMsp/msp`
+
+8. Prepare the orgMsp files
+
+   `cp org1.example.com/msp/config.yaml org1.example.com/orgMsp/msp && cp -R org1.example.com/msp/cacerts org1.example.com/orgMsp/msp && cp -R org1.example.com/msp/tlscacerts org1.example.com/orgMsp/msp`
+
+9. Prepare the localMsp files
+
+   `cp org1.example.com/msp/config.yaml org1.example.com/localMsp/msp && cp -R org1.example.com/msp/cacerts org1.example.com/localMsp/msp && cp -R org1.example.com/msp/tlscacerts org1.example.com/localMsp/msp && cp -R org1.example.com/msp/keystore org1.example.com/localMsp/msp && cp -R org1.example.com/msp/signcerts org1.example.com/localMsp/msp`
+
+Things are looking okay and similar to files return from the documentations.
+
+#############################################################################
+
 Upcoming to do:
 
-1. Registering and enrolling identities with CA
+1. Deploy the peer
 2. Documenting the instruction steps.
+
+Notes: Don't merge to main branch first unless peer deployment is successful.
