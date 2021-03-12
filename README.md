@@ -134,9 +134,9 @@ Registering and enrolling identities instruction steps.
            OrganizationalUnitIdentifier: orderer
    ```
 
-5. i)rename _org1.example.com/msp/signcerts/cert.pem_ to _org1-admin-cert.pem_
+5. i) rename _org1.example.com/msp/signcerts/cert.pem_ to _org1-admin-cert.pem_
 
-   ii)rename file inside _org1.example.com/msp/keystore_ to _org1-admin-key.pem_
+   ii) rename file inside _org1.example.com/msp/keystore_ to _org1-admin-key.pem_
 
 6. Create a tlscacerts folder and copy the tls-root-cert into this folder.
 
@@ -156,13 +156,93 @@ Registering and enrolling identities instruction steps.
 
    `cp org1.example.com/msp/config.yaml org1.example.com/localMsp/msp && cp -R org1.example.com/msp/cacerts org1.example.com/localMsp/msp && cp -R org1.example.com/msp/tlscacerts org1.example.com/localMsp/msp && cp -R org1.example.com/msp/keystore org1.example.com/localMsp/msp && cp -R org1.example.com/msp/signcerts org1.example.com/localMsp/msp`
 
-Things are looking okay and similar to files return from the documentations.
+NOTES UP TO THIS POINT:
+
+1. Things are looking okay and similar to files returned from the documentations.
+2. If the next few steps don't work, then might have to register and enroll peer identity instead of --id.type admin identities as in step (2) above.
+
+#############################################################################
+
+Deploy the peer
+
+1. Get binary and config files.
+
+   Download the peer binaries and configuration files from https://github.com/hyperledger/fabric/releases and extract into _Fabric-prod-network_ and rename the file as _fabric_.
+
+2. Add the location of the peer binary to PATH environment variable
+
+   `cd Fabric-prod-network`
+
+   `export PATH=$PWD/fabric/bin:$PATH`
+
+3. Create the following folder structure
+
+   ```
+   ├── organizations
+        └── peerOrganizations
+            └── org1.example.com
+                ├── msp
+                └── peers
+                    └── peer0.org1.example.com
+                        ├── msp
+                        └── tls
+   ```
+
+   `mkdir -p organizations/peerOrganizations/org1.example.com/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls`
+
+4. Prepare TLS certificates and peer local MSP files.
+
+   `cp -R fabric-ca-client/org1.example.com/localMsp/msp/tlscacerts/tls-ca-cert.pem organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/tls-cert.pem`
+
+   `cp -R fabric-ca-client/org1.example.com/localMsp/msp/signcerts/org1-admin-cert.pem organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/peer0-cert.pem`
+
+   `cp -R fabric-ca-client/org1.example.com/localMsp/msp/keystore/org1-admin-key.pem organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/peer0-key.pem`
+
+   `cp -R fabric-ca-client/org1.example.com/localMsp/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com`
+
+5. Edit _core.yaml_ in _fabric/config_ with the respective values:
+
+   ```
+   peer.tls.enabled: true
+
+   peer.tls.rootcert.file: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/tls-cert.pem
+
+   peer.tls.cert.file: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/peer0-cert.pem
+
+   peer.tls.key.file: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/peer0-key.pem
+
+   peer.mspConfigPath: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp
+
+   peer.fileSystemPath: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com
+
+   operations.listenAddress: 127.0.0.1:9445
+   ```
+
+6. Create a peer storage directory for your ledger
+
+   `mkdir -p organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/storage`
+
+7. Start the peer
+
+   `export FABRIC_CFG_PATH=$PWD/fabric/config`
+
+   `cd fabric/bin`
+
+   `./peer node start`
+
+NOTES UP TO THIS POINT:
+
+1. Peer is able to start, but code is [nodeCmd] serve -> INFO 01f instead of [nodeCmd] serve -> INFO 017 as stated in documentations. Might not be a big issue, but something to check upon.
+
+2. Output from peer states there are No active channels passed. (which is understandable because we have not joined our peer to any channel yet, but hope it is not an error for the next steps ahead.)
+
+3. Might need to edit core.yaml's External endpoint, as it is a warning that peer will not be accessible outside of its organization.
+
+4. Will only push to sub branch, as we are not 100% confirmed if anything here would break or change when next step is carried out.
 
 #############################################################################
 
 Upcoming to do:
 
-1. Deploy the peer
+1. Deploy the ordering service
 2. Documenting the instruction steps.
-
-Notes: Don't merge to main branch first unless peer deployment is successful.
