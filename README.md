@@ -213,7 +213,7 @@ Deploy the peer
 
    peer.mspConfigPath: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp
 
-   peer.fileSystemPath: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com
+   peer.fileSystemPath: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/storage
 
    operations.listenAddress: 127.0.0.1:9445
    ```
@@ -242,7 +242,149 @@ NOTES UP TO THIS POINT:
 
 #############################################################################
 
+Register and enrolling orderer identity.
+
+1. Start the org CA
+
+   `cd fabric-ca-server-org1`
+
+   `./fabric-ca-server start`
+
+2. Open a new terminal
+
+   `cd Fabric-prod-network/fabric-ca-client`
+
+   `export FABRIC_CA_CLIENT_HOME=$PWD`
+
+   `./fabric-ca-client register -d --id.name orderer0 --id.secret orderer0pw -u https://kky-dell:7055 --mspdir ./org1-ca/rcaadmin/msp --id.type orderer --tls.certfiles tls-root-cert/tls-ca-cert.pem --csr.hosts 'kky-dell,*localhost'`
+
+   `./fabric-ca-client enroll -u https://orderer0:orderer0pw@kky-dell:7055 --mspdir ./ordererOrg1.example.com/orderer0/msp --tls.certfiles tls-root-cert/tls-ca-cert.pem --csr.hosts 'kky-dell,*localhost'`
+
+3. create _config.yaml_ file inside _ordererOrg1.example.com/orderer0/msp_ folder with values of:
+
+   ```
+   NodeOUs:
+       Enable: true
+       ClientOUIdentifier:
+           Certificate: cacerts/kky-dell-7055.pem
+           OrganizationalUnitIdentifier: client
+       PeerOUIdentifier:
+           Certificate: cacerts/kky-dell-7055.pem
+           OrganizationalUnitIdentifier: peer
+       AdminOUIdentifier:
+           Certificate: cacerts/kky-dell-7055.pem
+           OrganizationalUnitIdentifier: admin
+       OrdererOUIdentifier:
+           Certificate: cacerts/kky-dell-7055.pem
+           OrganizationalUnitIdentifier: orderer
+   ```
+
+4. i) rename ordererOrg1.example.com/orderer0/msp/signcerts/cert.pem to orderer0-cert.pem
+
+   ii) rename file inside ordererOrg1.example.com/orderer0/msp/keystore to orderer0-key.pem
+
+5. Create a tlscacerts folder and copy the tls-root-cert into this folder.
+
+   `mkdir ordererOrg1.example.com/orderer0/msp/tlscacerts`
+
+   `cp tls-root-cert/tls-ca-cert.pem ordererOrg1.example.com/orderer0/msp/tlscacerts`
+
+6. Create orgMsp and localMsp folder.
+
+   `mkdir -p ordererOrg1.example.com/orderer0/orgMsp/msp ordererOrg1.example.com/orderer0/localMsp/msp`
+
+7. Prepare the orgMsp files
+
+   `cp ordererOrg1.example.com/orderer0/msp/config.yaml ordererOrg1.example.com/orderer0/orgMsp/msp && cp -R ordererOrg1.example.com/orderer0/msp/cacerts ordererOrg1.example.com/orderer0/orgMsp/msp && cp -R ordererOrg1.example.com/orderer0/msp/tlscacerts ordererOrg1.example.com/orderer0/orgMsp/msp`
+
+8. Prepare the localMSP files
+
+   `cp ordererOrg1.example.com/orderer0/msp/config.yaml ordererOrg1.example.com/orderer0/localMsp/msp && cp -R ordererOrg1.example.com/orderer0/msp/cacerts ordererOrg1.example.com/orderer0/localMsp/msp && cp -R ordererOrg1.example.com/orderer0/msp/tlscacerts ordererOrg1.example.com/orderer0/localMsp/msp && cp -R ordererOrg1.example.com/orderer0/msp/keystore ordererOrg1.example.com/orderer0/localMsp/msp && cp -R ordererOrg1.example.com/orderer0/msp/signcerts ordererOrg1.example.com/orderer0/localMsp/msp`
+
+9. Add the location of the orderer binary to PATH environment variable
+
+   `cd Fabric-prod-network`
+
+   `export PATH=$PWD/fabric/bin:$PATH`
+
+10. Create the following folder structure
+
+    ```
+    ├── organizations
+      └── ordererOrganizations
+            └── ordererOrg1.example.com
+               ├── msp
+                  ├── cacerts
+                  └── tlscacerts
+               ├── orderers
+                  └── orderer0.ordererOrg1.example.com
+                        ├── msp
+                        └── tls
+    ```
+
+    `mkdir -p organizations/ordererOrganizations/ordererOrg1.example.com/msp/cacerts organizations/ordererOrganizations/ordererOrg1.example.com/msp/tlscacerts organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/msp organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls`
+
+11. Prepare i)TLS certificates, ii) orderer local MSP files, and iii) orderer org MSP files.
+
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/localMsp/msp/tlscacerts/tls-ca-cert.pem organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem`
+
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/localMsp/msp/signcerts/orderer0-cert.pem organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/orderer0-cert.pem`
+
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/localMsp/msp/keystore/orderer0-key.pem organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/orderer0-key.pem`
+
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/localMsp/msp organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com`
+
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/orgMsp/msp/cacerts/kky-dell-7055.pem organizations/ordererOrganizations/ordererOrg1.example.com/msp/cacerts/ca-cert.pem`
+
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/orgMsp/msp/tlscacerts/tls-ca-cert.pem organizations/ordererOrganizations/ordererOrg1.example.com/msp/tlscacerts/tls-cert.pem`
+
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/orgMsp/msp/tlscacerts/tls-ca-cert.pem organizations/ordererOrganizations/ordererOrg1.example.com/msp/tlscacerts/tls-cert.pem`
+
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/orgMsp/msp/config.yaml organizations/ordererOrganizations/ordererOrg1.example.com/msp`
+
+NOTES UP TO THIS POINT:
+
+1.  Things are looking okay and similar to files returned when registering and enrolling identities for the peer.
+
+#############################################################################
+
+<!-- Create the ordering service genesis block
+
+1. Set environment variable:
+
+   `cd Fabric-prod-network`
+
+   `export PATH=$PWD/fabric/bin:$PATH`
+
+   `export FABRIC_CFG_PATH=$PWD/fabric/config`
+
+   `configtxgen --help`
+
+2. Edit _configtx.yaml_ in _fabric/config_ with the respective values:
+
+   ```
+   Organizations.- &OrdererOrg.
+   ``` -->
+
 Upcoming to do:
 
 1. Deploy the ordering service
 2. Documenting the instruction steps.
+
+#############################################################################
+
+<!-- Configuration of orderer.yaml
+
+1. Edit _orderer.yaml_ in _fabric/config_ with the respective values:
+
+   ```
+   General.TLS.Enabled: true
+
+   General.TLS.PrivateKey: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/orderer0-key.pem
+
+   General.TLS.Certificate: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/orderer0-cert.pem
+
+   General.TLS.RootCAs: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
+
+   General.LocalMSPDir: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/msp
+   ``` -->

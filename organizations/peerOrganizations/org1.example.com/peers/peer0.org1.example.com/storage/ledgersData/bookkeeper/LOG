@@ -4,3 +4,12 @@
 01:42:04.419229 version@stat F·[] S·0B[] Sc·[]
 01:42:04.420183 db@janitor F·2 G·0
 01:42:04.420219 db@open done T·1.251073ms
+=============== Apr 19, 2021 (+08) ===============
+01:00:17.767075 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+01:00:17.767477 version@stat F·[] S·0B[] Sc·[]
+01:00:17.767497 db@open opening
+01:00:17.767539 journal@recovery F·1
+01:00:17.767653 journal@recovery recovering @1
+01:00:17.768046 version@stat F·[] S·0B[] Sc·[]
+01:00:17.770981 db@janitor F·2 G·0
+01:00:17.770999 db@open done T·3.497007ms
