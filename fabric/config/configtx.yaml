@@ -337,8 +337,8 @@ Orderer: &OrdererDefaults
         Consenters:
             - Host: orderer0.ordererOrg1.example.com
               Port: 7050
-              ClientTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
-              ServerTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
+              ClientTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/orderer0-cert.pem
+              ServerTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/orderer0-cert.pem
             # - Host: raft1.example.com
             #   Port: 7050
             #   ClientTLSCert: path/to/ClientTLSCert1

@@ -399,8 +399,8 @@ Create the ordering service genesis block
         Consenters:
             - Host: orderer0.ordererOrg1.example.com
               Port: 7050
-              ClientTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
-              ServerTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
+              ClientTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/orderer0-cert.pem
+              ServerTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/orderer0-cert.pem
               # Note: If the above ClientTLSCert & ServerTLSCert does not work, would have to replace tls-cert.pem with orderer0-cert.pem instead.
             # Raft 1 and Raft 2 commented out for now as the orderer identity has not been registered and enrolled yet.
             # - Host: raft1.example.com
@@ -469,27 +469,29 @@ NOTES UP TO THIS POINT:
 1. Block generated, but might need to add participating orgs in consortium, but in order to do that:
    i) have to get all necessary files as the ordere has for the org1, especially orgMsp part.
 
-2. Once all these are done, delete the current test genesis block and create a new genesis block again. Maybe can try starting the orderer to see if it works in the first place or not, but that would require:
-   1. some configuring of the orderer.yaml file
-   2. folder creation for orderer ledger storage
-   3. WALDir configuration
+2. Once all these are done, delete the current test genesis block and create a new genesis block again.
+
+3. Maybe can try starting the orderer to see if it works in the first place or not, but that would require:
+   Orderer sucessfully deployed, this step is done.
+   1. some configuring of the orderer.yaml file (done)
+   2. folder creation for orderer ledger storage (done)
+   3. WALDir configuration (done)
 
 #############################################################################
 
 Deploy the ordering service
 
-1.
+1. Create folder stucture for orderer storage, write head logs, and snapshots
 
-Upcoming to do:
+   `cd Fabric-prod-network`
 
-1. Deploy the ordering service
-2. Documenting the instruction steps.
+   `mkdir organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/storage`
 
-#############################################################################
+   `mkdir -p organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/storage/etcdraft/write-ahead-logs`
 
-Configuration of orderer.yaml
+   `mkdir -p organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/storage/etcdraft/snapshot`
 
-1. Edit _orderer.yaml_ in _fabric/config_ with the respective values:
+2. Edit _orderer.yaml_ in _fabric/config_ with the respective values:
 
    ```
    General.TLS.Enabled: true
@@ -501,4 +503,40 @@ Configuration of orderer.yaml
    General.TLS.RootCAs: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
 
    General.LocalMSPDir: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/msp
+
+   General.BootstrapMethod: file
+
+   General.BootstrapFile: ../../system-genesis-block/genesis.block
+
+   General.LocalMSPID: OrdererMSP
+
+   FileLedger.Location: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/storage
+
+   Consensus.WALDir: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/storage/etcdraft/write-ahead-logs
+
+   Consensus.SnapDir: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/storage/etcdraft/snapshot
    ```
+
+3. Start the orderer
+
+   `export FABRIC_CFG_PATH=$PWD/fabric/config`
+
+   `cd fabric/bin`
+
+   `./orderer start`
+
+NOTES UP TO THIS POINT:
+
+1. Managed to fix configtx.yaml so genesis block is generated correctly.
+2. Configured orderer.yaml with all the necessary and correct files to start the orderer.
+3. Orderer is able to start, but still need to add more order for raft to perform election properly.
+
+#############################################################################
+
+Upcoming to do:
+
+1. Register and enroll more orderer to include in the ordering service.
+2. Configure the peer to be a part of configtx.yaml so they can be a consortium and create application channel.
+3. Documenting the instruction steps.
+
+#############################################################################
