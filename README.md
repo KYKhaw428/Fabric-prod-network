@@ -334,9 +334,7 @@ Register and enrolling orderer identity.
 
     `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/localMsp/msp organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com`
 
-    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/orgMsp/msp/cacerts/kky-dell-7055.pem organizations/ordererOrganizations/ordererOrg1.example.com/msp/cacerts/ca-cert.pem`
-
-    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/orgMsp/msp/tlscacerts/tls-ca-cert.pem organizations/ordererOrganizations/ordererOrg1.example.com/msp/tlscacerts/tls-cert.pem`
+    `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/orgMsp/msp/cacerts/kky-dell-7055.pem organizations/ordererOrganizations/ordererOrg1.example.com/msp/cacerts`
 
     `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/orgMsp/msp/tlscacerts/tls-ca-cert.pem organizations/ordererOrganizations/ordererOrg1.example.com/msp/tlscacerts/tls-cert.pem`
 
@@ -348,7 +346,7 @@ NOTES UP TO THIS POINT:
 
 #############################################################################
 
-<!-- Create the ordering service genesis block
+Create the ordering service genesis block
 
 1. Set environment variable:
 
@@ -360,11 +358,127 @@ NOTES UP TO THIS POINT:
 
    `configtxgen --help`
 
-2. Edit _configtx.yaml_ in _fabric/config_ with the respective values:
+2. Edit _configtx.yaml_ in _fabric/config_ to configure Organizations section with the following values:
 
    ```
-   Organizations.- &OrdererOrg.
-   ``` -->
+   Organizations:
+
+    - &OrdererOrg
+        Name: OrdererOrg
+        SkipAsForeign: false
+        ID: OrdererMSP
+        MSPDir: ../../organizations/ordererOrganizations/ordererOrg1.example.com/msp
+        Policies: &OrdererOrgPolicies
+            Readers:
+                Type: Signature
+                Rule: "OR('OrdererMSP.member')"
+            Writers:
+                Type: Signature
+                Rule: "OR('OrdererMSP.member')"
+            Admins:
+                Type: Signature
+                Rule: "OR('OrdererMSP.admin')"
+        OrdererEndpoints:
+            - "127.0.0.1:7050"
+   ```
+
+3. Edit _configtx.yaml_ in _fabric/config_ to configure Orderer section with the following values:
+
+   ```
+   Orderer: &OrdererDefaults
+    OrdererType: etcdraft
+    Addresses:
+        # - 127.0.0.1:7050
+    BatchTimeout: 2s
+    BatchSize:
+        MaxMessageCount: 500
+        AbsoluteMaxBytes: 10 MB
+        PreferredMaxBytes: 2 MB
+    MaxChannels: 0
+    EtcdRaft:
+        Consenters:
+            - Host: orderer0.ordererOrg1.example.com
+              Port: 7050
+              ClientTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
+              ServerTLSCert: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
+              # Note: If the above ClientTLSCert & ServerTLSCert does not work, would have to replace tls-cert.pem with orderer0-cert.pem instead.
+            # Raft 1 and Raft 2 commented out for now as the orderer identity has not been registered and enrolled yet.
+            # - Host: raft1.example.com
+            #   Port: 7050
+            #   ClientTLSCert: path/to/ClientTLSCert1
+            #   ServerTLSCert: path/to/ServerTLSCert1
+            # - Host: raft2.example.com
+            #   Port: 7050
+            #   ClientTLSCert: path/to/ClientTLSCert2
+            #   ServerTLSCert: path/to/ServerTLSCert2
+        Options:
+            TickInterval: 500ms
+            ElectionTick: 10
+            HeartbeatTick: 1
+            MaxInflightBlocks: 5
+            SnapshotIntervalSize: 16 MB
+    Organizations:
+    Policies:
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "MAJORITY Admins"
+        BlockValidation:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+    Capabilities:
+        <<: *OrdererCapabilities
+   ```
+
+4. Edit _configtx.yaml_ in _fabric/config_ to configure Profiles section with the following values:
+
+   ```
+   Profiles:
+
+    EtcdRaftOrdererGenesis:
+        <<: *ChannelDefaults
+        Orderer:
+            <<: *OrdererDefaults
+            OrdererType: etcdraft
+            Organizations:
+                - <<: *OrdererOrg
+                  Policies:
+                      <<: *OrdererOrgPolicies
+                      Admins:
+                          Type: Signature
+                          Rule: "OR('OrdererMSP.member')"
+        Application:
+            <<: *ApplicationDefaults
+            Organizations:
+        Consortiums:
+            SampleConsortium:
+                Organizations:
+   ```
+
+5. Generate the system genesis block:
+
+   `configtxgen -profile EtcdRaftOrdererGenesis -channelID system-channel-testrun-1 -outputBlock ./system-genesis-block/genesis.block`
+
+NOTES UP TO THIS POINT:
+
+1. Block generated, but might need to add participating orgs in consortium, but in order to do that:
+   i) have to get all necessary files as the ordere has for the org1, especially orgMsp part.
+
+2. Once all these are done, delete the current test genesis block and create a new genesis block again. Maybe can try starting the orderer to see if it works in the first place or not, but that would require:
+   1. some configuring of the orderer.yaml file
+   2. folder creation for orderer ledger storage
+   3. WALDir configuration
+
+#############################################################################
+
+Deploy the ordering service
+
+1.
 
 Upcoming to do:
 
@@ -373,7 +487,7 @@ Upcoming to do:
 
 #############################################################################
 
-<!-- Configuration of orderer.yaml
+Configuration of orderer.yaml
 
 1. Edit _orderer.yaml_ in _fabric/config_ with the respective values:
 
@@ -387,4 +501,4 @@ Upcoming to do:
    General.TLS.RootCAs: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem
 
    General.LocalMSPDir: ../../organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/msp
-   ``` -->
+   ```
