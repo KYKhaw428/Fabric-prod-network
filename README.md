@@ -190,7 +190,7 @@ Deploy the peer
 
    `mkdir -p organizations/peerOrganizations/org1.example.com/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls`
 
-4. Prepare TLS certificates and peer local MSP files.
+4. Prepare i) TLS certificates, ii) peer local MSP files, and iii) peer org MSP files.
 
    `cp -R fabric-ca-client/org1.example.com/localMsp/msp/tlscacerts/tls-ca-cert.pem organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/tls-cert.pem`
 
@@ -199,6 +199,8 @@ Deploy the peer
    `cp -R fabric-ca-client/org1.example.com/localMsp/msp/keystore/org1-admin-key.pem organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/peer0-key.pem`
 
    `cp -R fabric-ca-client/org1.example.com/localMsp/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com`
+
+   `cp -R fabric-ca-client/org1.example.com/orgMsp/msp organizations/peerOrganizations/org1.example.com`
 
 5. Edit _core.yaml_ in _fabric/config_ with the respective values:
 
@@ -324,7 +326,7 @@ Register and enrolling orderer identity.
 
     `mkdir -p organizations/ordererOrganizations/ordererOrg1.example.com/msp/cacerts organizations/ordererOrganizations/ordererOrg1.example.com/msp/tlscacerts organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/msp organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls`
 
-11. Prepare i)TLS certificates, ii) orderer local MSP files, and iii) orderer org MSP files.
+11. Prepare i) TLS certificates, ii) orderer local MSP files, and iii) orderer org MSP files.
 
     `cp -R fabric-ca-client/ordererOrg1.example.com/orderer0/localMsp/msp/tlscacerts/tls-ca-cert.pem organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/tls/tls-cert.pem`
 
@@ -380,6 +382,28 @@ Create the ordering service genesis block
                 Rule: "OR('OrdererMSP.admin')"
         OrdererEndpoints:
             - "127.0.0.1:7050"
+
+    - &Org1
+        Name: Org1MSP
+        SkipAsForeign: false
+        ID: Org1MSP
+        MSPDir: ../../organizations/peerOrganizations/org1.example.com/msp
+        Policies: &Org1Policies
+            Readers:
+                Type: Signature
+                Rule: "OR('Org1MSP.admin', 'Org1MSP.peer', 'Org1MSP.client')"
+            Writers:
+                Type: Signature
+                Rule: "OR('Org1MSP.admin', 'Org1MSP.client')"
+            Admins:
+                Type: Signature
+                Rule: "OR('Org1MSP.admin')"
+            Endorsement:
+                Type: Signature
+                Rule: "OR('Org1MSP.peer')"
+        AnchorPeers:
+            - Host: 127.0.0.1
+              Port: 7051
    ```
 
 3. Edit _configtx.yaml_ in _fabric/config_ to configure Orderer section with the following values:
@@ -455,9 +479,21 @@ Create the ordering service genesis block
         Application:
             <<: *ApplicationDefaults
             Organizations:
+                - <<: *Org1
+                  Policies:
+                      <<: *Org1Policies
+                      Admins:
+                          Type: Signature
+                          Rule: "OR('Org1MSP.member')"
         Consortiums:
             SampleConsortium:
                 Organizations:
+                    - <<: *Org1
+                      Policies:
+                          <<: *Org1Policies
+                          Admins:
+                              Type: Signature
+                              Rule: "OR('Org1MSP.member')"
    ```
 
 5. Generate the system genesis block:
@@ -466,16 +502,19 @@ Create the ordering service genesis block
 
 NOTES UP TO THIS POINT:
 
-1. Block generated, but might need to add participating orgs in consortium, but in order to do that:
-   i) have to get all necessary files as the ordere has for the org1, especially orgMsp part.
+1. Added Org1 in Organizations and Profile section of configtx.yaml.
 
-2. Once all these are done, delete the current test genesis block and create a new genesis block again.
+2. New block generated.
 
-3. Maybe can try starting the orderer to see if it works in the first place or not, but that would require:
-   Orderer sucessfully deployed, this step is done.
-   1. some configuring of the orderer.yaml file (done)
-   2. folder creation for orderer ledger storage (done)
-   3. WALDir configuration (done)
+3. Will proceed to register org2 and orderer1 + orderer2 and include in this file as well.
+
+Additional notes:
+
+1. Everytime configtx.yaml is edited to generate a new genesis block, delete the system-genesis-block folder.
+
+2. Delete files in organizations/ordererOrganizations/ordererOrg1.example.com/orderers/orderer0.ordererOrg1.example.com/ i) storage/chains ii) storage/etcdraft/snapshot iii) storage/etcdraft/write-ahead-logs iv) storage/index
+
+3. Then start the orderer again as shown in the steps below.
 
 #############################################################################
 
@@ -527,9 +566,7 @@ Deploy the ordering service
 
 NOTES UP TO THIS POINT:
 
-1. Managed to fix configtx.yaml so genesis block is generated correctly.
-2. Configured orderer.yaml with all the necessary and correct files to start the orderer.
-3. Orderer is able to start, but still need to add more order for raft to perform election properly.
+1. Orderer is able to start, but still need to add more order for raft to perform election properly.
 
 #############################################################################
 

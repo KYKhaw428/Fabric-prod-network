@@ -32,6 +32,29 @@ Organizations:
         OrdererEndpoints:
             - "127.0.0.1:7050"
 
+    - &Org1
+        Name: Org1MSP
+        SkipAsForeign: false
+        ID: Org1MSP
+        MSPDir: ../../organizations/peerOrganizations/org1.example.com/msp
+        Policies: &Org1Policies
+            Readers:
+                Type: Signature
+                Rule: "OR('Org1MSP.admin', 'Org1MSP.peer', 'Org1MSP.client')"
+            Writers:
+                Type: Signature
+                Rule: "OR('Org1MSP.admin', 'Org1MSP.client')"
+            Admins:
+                Type: Signature
+                Rule: "OR('Org1MSP.admin')"
+            Endorsement:
+                Type: Signature
+                Rule: "OR('Org1MSP.peer')"
+        AnchorPeers:
+            - Host: 127.0.0.1
+              Port: 7051
+
+
     # SampleOrg defines an MSP using the sampleconfig. It should never be used
     # in production but may be used as a template for other definitions.
     - &SampleOrg
@@ -465,9 +488,21 @@ Profiles:
         Application:
             <<: *ApplicationDefaults
             Organizations:
+                - <<: *Org1
+                  Policies:
+                      <<: *Org1Policies
+                      Admins:
+                          Type: Signature
+                          Rule: "OR('Org1MSP.member')"
         Consortiums:
             SampleConsortium:
                 Organizations:
+                    - <<: *Org1
+                      Policies:
+                          <<: *Org1Policies
+                          Admins:
+                              Type: Signature
+                              Rule: "OR('Org1MSP.member')"
    
 
     # EtcdRaftOrdererGenesis:
