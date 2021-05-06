@@ -11,11 +11,11 @@
 peer:
   # The peer id provides a name for this peer instance and is used when
   # naming docker resources.
-  id: jdoe
+  id: peer0.org1.example.com
 
   # The networkId allows for logical separation of networks and is used when
   # naming docker resources.
-  networkId: dev
+  networkId: prod
 
   # The Address at local network interface this Peer will listen on.
   # By default, it will listen on all network interfaces
@@ -333,7 +333,7 @@ peer:
   # to match the name of one of the MSPs in each of the channel
   # that this peer is a member of. Otherwise this peer's messages
   # will not be identified as valid by other nodes.
-  localMspId: SampleOrg
+  localMspId: Org1MSP
 
   # CLI common client config options
   client:

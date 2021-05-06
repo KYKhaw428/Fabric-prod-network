@@ -79,10 +79,10 @@ CA Deployment setup instruction steps.
     1. change port from 7054 to 7055
     2. change tls.enabled: false to true
     3. assign tls.certfile: tls/cert.pem
-    4. assign tls.keystore: tls/key.pem
+    4. assign tls.keyfile: tls/key.pem
     5. assign ca.name: org1-ca
     6. edit csr.hosts if needed
-    7. operations.listenAddress: port change from 9443 to 9444
+    7. operations.listenAddress: 127.0.0.1:9444
     8. save
 
 11. delete _fabric-ca-server-org1/ca-cert.pem_ file & entire _fabric-ca-server-org1/msp_ folder, then run `./fabric-ca-server start`
@@ -186,9 +186,10 @@ Deploy the peer
                     └── peer0.org1.example.com
                         ├── msp
                         └── tls
+                        └── storage
    ```
 
-   `mkdir -p organizations/peerOrganizations/org1.example.com/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls`
+   `mkdir -p organizations/peerOrganizations/org1.example.com/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/storage`
 
 4. Prepare i) TLS certificates, ii) peer local MSP files, and iii) peer org MSP files.
 
@@ -205,6 +206,10 @@ Deploy the peer
 5. Edit _core.yaml_ in _fabric/config_ with the respective values:
 
    ```
+   peer.id: peer0.org1.example.com
+
+   peer.networkId: prod
+
    peer.tls.enabled: true
 
    peer.tls.rootcert.file: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/tls-cert.pem
@@ -217,14 +222,12 @@ Deploy the peer
 
    peer.fileSystemPath: ../../organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/storage
 
+   peer.localMspId: Org1MSP
+
    operations.listenAddress: 127.0.0.1:9445
    ```
 
-6. Create a peer storage directory for your ledger
-
-   `mkdir -p organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/storage`
-
-7. Start the peer
+6. Start the peer
 
    `export FABRIC_CFG_PATH=$PWD/fabric/config`
 
@@ -567,6 +570,197 @@ Deploy the ordering service
 NOTES UP TO THIS POINT:
 
 1. Orderer is able to start, but still need to add more order for raft to perform election properly.
+
+#############################################################################
+
+Setup Org2 CA Server, register org2 peer, and start org2 peer.
+
+1.  Deploy the organization 2 CA
+
+    `cd Fabric-prod-network`
+
+    `mkdir -p fabric-ca-server-org2/tls`
+
+    `cp hyperledger-fabric-ca-linux-amd64-1.4.9/bin/fabric-ca-server fabric-ca-server-org2`
+
+    `cp fabric-ca-client/tls-ca/rcaadmin/msp/signcerts/cert.pem fabric-ca-server-org2/tls && cp fabric-ca-client/tls-ca/rcaadmin/msp/keystore/key.pem fabric-ca-server-org2/tls`
+
+    `cd fabric-ca-server-org2`
+
+    `./fabric-ca-server init -b rcaadmin:rcaadminpw`
+
+2.  Edit _fabric-ca-server-config.yaml_ under _fabric-ca-server-org2_ folder with the following values:
+
+    ```
+    port: 7056
+    tls.enabled: true
+    tls.certfile: tls/cert.pem
+    tls.keyfile: tls/key.pem
+    ca.name: org2-ca
+    operations.listenAddress: 127.0.0.1:9445
+
+    csr:
+       cn: fabric-ca-server
+       keyrequest:
+          algo: ecdsa
+          size: 256
+       names:
+        - C: Malaysia
+          ST: Kuala Lumpur
+          L:
+          O: Hyperledger
+          OU: Fabric
+       hosts:
+          - kky-dell
+          - localhost
+       ca:
+          expiry: 131400h
+          pathlength: 1
+    ```
+
+3.  Delete _fabric-ca-server-org2/ca-cert.pem_ and entire _fabric-ca-server-org2/msp_ folder, and then start the CA.
+
+    `rm ca-cert.pem`
+
+    `rm -r msp`
+
+    `./fabric-ca-server start`
+
+4.  Open new terminal tab:
+
+    `cd Fabric-prod-network/fabric-ca-client`
+
+    `export FABRIC_CA_CLIENT_HOME=$PWD`
+
+    `./fabric-ca-client enroll -d -u https://rcaadmin:rcaadminpw@kky-dell:7056 --tls.certfiles tls-root-cert/tls-ca-cert.pem --csr.hosts 'kky-dell,*localhost' --mspdir org2-ca/rcaadmin/msp`
+
+    rename the file in _fabric-ca-client/org2-ca/rcaadmin/msp/keystore_ folder to _org2-key.pem_
+
+5.  Register and enroll org2 identity
+
+    `./fabric-ca-client register -d --id.name org2admin --id.secret org2adminpw -u https://kky-dell:7056 --mspdir ./org2-ca/rcaadmin/msp --id.type admin --tls.certfiles tls-root-cert/tls-ca-cert.pem --csr.hosts 'kky-dell,*localhost'`
+
+    `./fabric-ca-client enroll -u https://org2admin:org2adminpw@kky-dell:7056 --mspdir ./org2.example.com/msp --tls.certfiles tls-root-cert/tls-ca-cert.pem --csr.hosts 'kky-dell,*localhost'`
+
+6.  create config.yaml file inside _org2.example.com/msp_ folder with values of:
+
+    ```
+    NodeOUs:
+        Enable: true
+        ClientOUIdentifier:
+            Certificate: cacerts/kky-dell-7056.pem
+            OrganizationalUnitIdentifier: client
+        PeerOUIdentifier:
+            Certificate: cacerts/kky-dell-7056.pem
+            OrganizationalUnitIdentifier: peer
+        AdminOUIdentifier:
+            Certificate: cacerts/kky-dell-7056.pem
+            OrganizationalUnitIdentifier: admin
+        OrdererOUIdentifier:
+            Certificate: cacerts/kky-dell-7056.pem
+            OrganizationalUnitIdentifier: orderer
+    ```
+
+7.  i) rename _org2.example.com/msp/signcerts/cert.pem_ to _org2-admin-cert.pem_
+
+    ii) rename file inside _org2.example.com/msp/keystore_ to _org2-admin-key.pem_
+
+8.  Create a tlscacerts folder and copy the tls-root-cert into this folder.
+
+    `mkdir org2.example.com/msp/tlscacerts`
+
+    `cp tls-root-cert/tls-ca-cert.pem org2.example.com/msp/tlscacerts`
+
+9.  Create orgMsp and localMsp folder.
+
+    `mkdir -p org2.example.com/orgMsp/msp org2.example.com/localMsp/msp`
+
+10. Prepare the orgMsp files
+
+    `cp org2.example.com/msp/config.yaml org2.example.com/orgMsp/msp && cp -R org2.example.com/msp/cacerts org2.example.com/orgMsp/msp && cp -R org2.example.com/msp/tlscacerts org2.example.com/orgMsp/msp`
+
+11. Prepare the localMsp files
+
+    `cp org2.example.com/msp/config.yaml org2.example.com/localMsp/msp && cp -R org2.example.com/msp/cacerts org2.example.com/localMsp/msp && cp -R org2.example.com/msp/tlscacerts org2.example.com/localMsp/msp && cp -R org2.example.com/msp/keystore org2.example.com/localMsp/msp && cp -R org2.example.com/msp/signcerts org2.example.com/localMsp/msp`
+
+12. Add the location of the peer binary to PATH environment variable
+
+    `cd Fabric-prod-network`
+
+    `export PATH=$PWD/fabric/bin:$PATH`
+
+13. Create the following folder structure
+
+    ```
+    ├── organizations
+        └── peerOrganizations
+            └── org2.example.com
+                ├── msp
+                └── peers
+                    └── peer0.org2.example.com
+                        ├── msp
+                        └── tls
+                        └── config
+                        └── storage
+    ```
+
+    `mkdir -p organizations/peerOrganizations/org2.example.com/msp organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/config organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/storage`
+
+14. Prepare i) TLS certificates, ii) peer local MSP files, and iii) peer org MSP files.
+
+    `cp -R fabric-ca-client/org2.example.com/localMsp/msp/tlscacerts/tls-ca-cert.pem organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/tls-cert.pem`
+
+    `cp -R fabric-ca-client/org2.example.com/localMsp/msp/signcerts/org2-admin-cert.pem organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/peer0-cert.pem`
+
+    `cp -R fabric-ca-client/org2.example.com/localMsp/msp/keystore/org2-admin-key.pem organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/peer0-key.pem`
+
+    `cp -R fabric-ca-client/org2.example.com/localMsp/msp organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com`
+
+    `cp -R fabric-ca-client/org2.example.com/orgMsp/msp organizations/peerOrganizations/org2.example.com`
+
+15. Get a copy of _core.yaml_ from _fabric/config_ for org2.example.com/peer0
+
+    `cp fabric/config/core.yaml organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/config`
+
+    Then edit it with the following values:
+
+    ```
+    peer.id: peer0.org2.example.com
+
+    peer.networkId: prod
+
+    peer.tls.enabled: true
+
+    peer.tls.rootcert.file: ../tls/tls-cert.pem
+
+    peer.tls.cert.file: ../tls/peer0-cert.pem
+
+    peer.tls.key.file: ../tls/peer0-key.pem
+
+    peer.mspConfigPath: ../msp
+
+    peer.fileSystemPath: ../storage
+
+    peer.localMspId: Org2MSP
+
+    operations.listenAddress: 127.0.0.1:9446
+    ```
+
+16. Start the peer
+
+    `export FABRIC_CFG_PATH=$PWD/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/config`
+
+    `cd fabric/bin`
+
+    `./peer node start`
+
+NOTES UP TO THIS POINT:
+
+1. Output from peer states there are No active channels passed. (which is understandable because we have not joined our peer to any channel yet, but hope it is not an error for the next steps ahead.)
+
+2. Might need to edit core.yaml's External endpoint, as it is a warning that peer will not be accessible outside of its organization.
+
+3. Unable to start 2 peer at the same time, as chaincodeListenAddress keep clashing, might have to edit core.yaml to fix it.
 
 #############################################################################
 
